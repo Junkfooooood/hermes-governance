@@ -1,0 +1,52 @@
+# Secrets & credentials
+.env
+auth.json
+auth.lock
+config.yaml
+gateway.lock
+gateway.pid
+
+# Database & state files
+state.db
+state.db-shm
+state.db-wal
+*.db
+*.db-shm
+*.db-wal
+models_dev_cache.json
+ollama_cloud_models_cache.json
+mem0.json
+.skills_prompt_snapshot.json
+processes.json
+gateway_state.json
+channel_directory.json
+context_length_cache.yaml
+
+# Session & runtime data
+sessions/
+logs/
+cache/
+audio_cache/
+image_cache/
+cron/
+sandboxes/
+pairing/
+
+# Lock files
+*.lock
+*.pid
+
+# IDE & editor
+.claude/
+.cursor/
+
+# Misc runtime
+.update_check
+.hermes_history
+interrupt_debug.log
+__pycache__/
+*.pyc
+
+# OS
+.DS_Store
+Thumbs.db
