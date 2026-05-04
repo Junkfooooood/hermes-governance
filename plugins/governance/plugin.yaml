@@ -1,0 +1,9 @@
+name: governance
+version: 1.0.0
+description: "三省六部治理框架 — 祖Agent→中书省(规划)→门下省(审核)→尚书省(调度)→六部(执行)→尚书省(整合)"
+author: "Hermes"
+kind: standalone
+provides_tools:
+  - governance_committee
+provides_hooks:
+  - pre_tool_call

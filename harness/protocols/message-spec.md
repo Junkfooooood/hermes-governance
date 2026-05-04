@@ -6,6 +6,7 @@ All inter-agent communication in the Hermes ecosystem uses this message format. 
 - **Machine readability**: structured YAML frontmatter for tooling
 - **Agent readability**: clear natural-language content body
 - **Traceability**: every message carries full provenance
+- **Radial compliance**: all messages follow the radial communication structure
 
 ## Message Schema
 
@@ -26,17 +27,19 @@ content_hash: <sha256>           # Optional. For integrity verification.
 
 ## Intent Types
 
-| Intent | Meaning | Expected Response |
-|--------|---------|-------------------|
-| `DELEGATE` | Task assignment with contract | `ACK` or `QUERY` |
-| `REPORT` | Task result delivery | `ACK` |
-| `REVIEW` | Request for independent review | `VERDICT` |
-| `VERDICT` | Review decision | `ACK` |
-| `QUERY` | Request for information | `RESPONSE` |
-| `RESPONSE` | Answer to a query | `ACK` |
-| `ALERT` | Safety or blocking issue | `ACK` (immediate) |
-| `ACK` | Confirmation of receipt + understanding | None (terminal) |
-| `HEARTBEAT` | Liveness signal | None (informational) |
+| Intent | Direction | Purpose | Expected Response |
+|--------|-----------|---------|-------------------|
+| `DELEGATE` | 祖 Agent → 三省 | Issue a top-level task | `ACK` or `QUERY` |
+| `PLAN` | 中书省 → 门下省 | Submit plan for review | `VERDICT` |
+| `VERDICT` | 门下省 → 中书省/尚书省 | Approve or reject plan | `ACK` |
+| `DISPATCH` | 尚书省 → 六部 | Dispatch sub-task | `ACK` or `QUERY` |
+| `REPORT` | 六部 → 尚书省 | Return task results | `ACK` |
+| `INTEGRATE` | 尚书省 → 祖 Agent | Submit integrated result | `ACK` |
+| `QUERY` | Any → parent | Request information | `RESPONSE` |
+| `RESPONSE` | parent → Any | Answer to a query | `ACK` |
+| `ALERT` | Any → 尚书省 | Safety or blocking issue | `ACK` (immediate) |
+| `ACK` | Any → Any | Confirmation of receipt | None (terminal) |
+| `HEARTBEAT` | 六部 → 尚书省 | Liveness signal | None (informational) |
 
 ## Priority Levels
 
@@ -54,11 +57,23 @@ Only `ALERT` intents may use `critical` priority.
 ### For DELEGATE
 Content body contains a delegation contract (see [`delegation-spec.md`](delegation-spec.md)).
 
+### For PLAN
+Content body contains the hypothesis and validation action schema from 中书省.
+
+### For VERDICT
+Content body contains the review decision from 门下省:
+- `APPROVED` — plan is sound, proceed to dispatch
+- `REJECTED` — plan has issues, return to 中书省 with reasons
+- Max 3 rounds of review before escalation to 祖 Agent
+
+### For DISPATCH
+Content body contains a sub-task delegation contract for a specific 六部.
+
 ### For REPORT
 Content body contains the task result in the format specified by the delegation contract's `result_format`.
 
-### For VERDICT
-Content body contains a review report (see [`roles/reviewer.md`](../roles/reviewer.md)).
+### For INTEGRATE
+Content body contains the integrated result from 尚书省, combining outputs from multiple 六部.
 
 ### For QUERY / RESPONSE
 Free-form natural language, but must include:
@@ -72,6 +87,19 @@ Must include:
 - Which agent/tool/session is affected
 - Severity assessment
 - Recommended action
+
+## Routing Rules
+
+| From | To | Allowed |
+|------|----|---------|
+| 祖 Agent | 三省 | Yes |
+| 中书省 | 门下省 | Yes |
+| 门下省 | 中书省 / 尚书省 | Yes |
+| 尚书省 | 六部 | Yes |
+| 六部 | 尚书省 | Yes |
+| 尚书省 | 祖 Agent | Yes |
+| 六部 | 六部 | **NO** — must route through 尚书省 |
+| 六部 | 祖 Agent | **NO** — must route through 尚书省 |
 
 ## Message Integrity
 

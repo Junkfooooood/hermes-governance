@@ -9,7 +9,7 @@ This is a self-assessment prompt that any agent can run to measure and reduce co
 - At session start (baseline)
 - After 10+ turns (drift check)
 - When the agent feels "overwhelmed" or "unfocused"
-- When the coordinator requests a noise report
+- When 尚书省 requests a noise report
 
 ## The Diagnostic Prompt
 
@@ -63,7 +63,7 @@ Based on the above:
 | 0–15% | Healthy | No action needed |
 | 16–30% | Acceptable | Monitor; run diagnostic again in 5 turns |
 | 31–50% | Elevated | Active compression required; defer non-essential recalls |
-| 51%+ | Critical | Force context compression; escalate to coordinator |
+| 51%+ | Critical | Force context compression; escalate to 尚书省 |
 
 ## Auto-Compression Triggers
 
@@ -74,9 +74,9 @@ If noise ratio exceeds 50%, the harness should automatically:
 4. Defer non-essential prefetched content (re-fetch on demand)
 5. Re-run diagnostic to confirm noise dropped below 30%
 
-## Coordinator Noise Report
+## 尚书省 Noise Report
 
-When the coordinator requests noise reports from child agents, each agent reports:
+When 尚书省 requests noise reports from 六部, each agent reports:
 ```yaml
 agent_id: <id>
 noise_ratio: <percentage>

@@ -13,7 +13,7 @@ Hooks run OUTSIDE the agent's decision loop — they are harness-level enforceme
 | Hook | When It Fires | Purpose |
 |------|--------------|---------|
 | `pre_session_start` | Before agent initialization | Validate environment, load rules, check credentials |
-| `post_session_start` | After agent is initialized | Set up audit trail, register with coordinator |
+| `post_session_start` | After agent is initialized | Set up audit trail, register with 尚书省 |
 | `pre_session_end` | Before cleanup begins | Flush pending writes, prepare feedback records |
 | `post_session_end` | After cleanup completes | Archive session, update metrics, release resources |
 
@@ -37,14 +37,14 @@ Hooks run OUTSIDE the agent's decision loop — they are harness-level enforceme
 |------|--------------|---------|
 | `pre_delegation` | Before delegation contract is issued | Validate contract completeness, check scope |
 | `post_delegation` | After child agent returns results | Verify result format, check against contract |
-| `pre_child_spawn` | Before spawning a child agent | Validate spawn limits, check resource availability |
+| `pre_activation` | Before activating a resident agent | Validate agent availability, check resource limits |
 
 ### Review Hooks
 
 | Hook | When It Fires | Purpose |
 |------|--------------|---------|
-| `pre_review` | Before reviewer evaluates output | Strip executor reasoning (PGE pattern) |
-| `post_review` | After reviewer returns verdict | Log verdict, route to coordinator |
+| `pre_review` | Before 门下省 evaluates output | Strip agent reasoning (PGE pattern) |
+| `post_review` | After 门下省 returns verdict | Log verdict, route to 尚书省 |
 
 ### Error Hooks
 
@@ -66,7 +66,7 @@ Runtime hooks take precedence — they cannot be bypassed by the agent.
 
 Every hook implementation must:
 1. Accept a context object with relevant state
-2. Return one of: `ALLOW` (proceed), `MODIFY` (proceed with changes), `BLOCK` (stop with reason), `ESCALATE` (defer to coordinator/human)
+2. Return one of: `ALLOW` (proceed), `MODIFY` (proceed with changes), `BLOCK` (stop with reason), `ESCALATE` (defer to 尚书省/human)
 3. Be non-blocking (fast execution, no network calls unless essential)
 4. Log its decision for audit
 

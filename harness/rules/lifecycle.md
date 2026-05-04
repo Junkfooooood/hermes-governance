@@ -1,107 +1,89 @@
 # Agent Lifecycle Rules
 
-## 1. Lifecycle Stages
+## 1. Resident Role Lifecycle
+
+三省六部 are **resident roles** — permanent, not spawned/retired per task.
 
 ```
- ┌─────────┐
- │  SPAWN  │  ← Coordinator initiates
- └────┬────┘
-      ▼
- ┌─────────────┐
- │  HANDSHAKE  │  ← Advertise capabilities, receive role
- └────┬────────┘
-      ▼
- ┌─────────────┐
- │   EXECUTE   │  ← Main task loop (Ralph Loop)
- └────┬────────┘
-      ▼
- ┌─────────────┐
- │   REPORT    │  ← Return results to coordinator
- └────┬────────┘
-      ▼
- ┌─────────────┐
- │   REVIEW    │  ← Reviewer evaluates output
- └────┬────────┘
-      ▼
- ┌─────────────┐
- │   RETIRE    │  ← Clean up context, record feedback
- └─────────────┘
+┌──────────────┐
+│    IDLE      │  ← Waiting for task assignment
+└──────┬───────┘
+       ▼
+┌──────────────┐
+│  ACTIVATED   │  ← 尚书省 dispatches task
+└──────┬───────┘
+       ▼
+┌──────────────┐
+│   EXECUTE    │  ← Perform domain work
+└──────┬───────┘
+       ▼
+┌──────────────┐
+│   REPORT     │  ← Return results to 尚书省
+└──────┬───────┘
+       ▼
+┌──────────────┐
+│  DEACTIVATE  │  ← Return to IDLE, retain memory
+└──────────────┘
 ```
 
-## 2. Stage Entry & Exit Criteria
+No RETIRE step — agents persist and accumulate experience across tasks.
 
-### SPAWN
-- **Entry**: Coordinator issues a delegation contract
-- **Exit**: Agent process created, session_id assigned, role loaded
-- **Max time**: 10 seconds
+## 2. Stage Details
 
-### HANDSHAKE
-- **Entry**: Agent loads AGENTS.md + role definition + constitution
-- **Exit**: ACK sent to coordinator with capabilities + confirmed understanding
-- **Required**: Agent must parse and confirm the delegation contract
+### IDLE
+- Agent is resident, holding persistent context and memory
+- Waiting for 尚书省 to dispatch a task
+- Can receive HEARTBEAT pings
+
+### ACTIVATED
+- **Entry**: 尚书省 sends DISPATCH with delegation contract
+- **Exit**: Agent ACKs with capabilities and confirmed understanding
 - **Max time**: 30 seconds
 
 ### EXECUTE
-- **Entry**: Handshake complete, task scope loaded
+- **Entry**: Activation complete, task scope loaded
 - **Exit**: Result produced OR blocker identified OR deadline exceeded
-- **Max iterations**: 3 Ralph Loop cycles per task
+- **Max iterations**: 3 per task
 - **Checkpoint**: After each turn, verify progress against success criteria
 
 ### REPORT
-- **Entry**: Execution complete, self-review passed
-- **Exit**: RESULT message sent to coordinator in specified format
-- **Required**: Include all fields from delegation contract's result_format
-- **Max time**: 60 seconds to format and send
+- **Entry**: Execution complete
+- **Exit**: RESULT message sent to 尚书省
+- **Max time**: 60 seconds
 
-### REVIEW
-- **Entry**: Coordinator sends task + output to reviewer
-- **Exit**: Reviewer returns APPROVE / REVISE / REJECT verdict
-- **Max time**: 120 seconds
-- **Constraint**: Reviewer must NOT see executor reasoning (PGE pattern)
-
-### RETIRE
-- **Entry**: Review complete, coordinator has accepted final output
-- **Exit**: Session cleaned up, hooks fired, feedback recorded
+### DEACTIVATE
+- **Entry**: Report sent, 尚书省 has accepted result
+- **Exit**: Return to IDLE
 - **Required**:
-  - `on_session_end` hooks fired
-  - Working memory discarded (or summarized if valuable)
-  - Feedback recorded for consequential decisions
-  - Session state written to session store
-- **Max time**: 30 seconds
+  - Record feedback for consequential decisions
+  - Update agent memory with task learnings
+  - Release temporary resources
+  - Report session metrics to 吏部 (turns used, tools called, tokens consumed)
 
-## 3. Session Limits
+## 3. Task Session Limits
 
-All agent sessions have hard limits (from config):
+Each task session has hard limits:
 - `max_turns: 150` — total API call iterations
 - `gateway_timeout: 1800` — maximum session lifetime in seconds
-- `max_iterations: 3` — Ralph Loop cycles per task
+- `max_iterations: 3` — execution cycles per task
 
 When a limit is reached:
-1. Agent sends partial results (if any) to coordinator
-2. Agent enters RETIRE stage immediately
-3. Coordinator decides whether to re-delegate or accept partial results
+1. Agent sends partial results to 尚书省
+2. Agent enters DEACTIVATE immediately
+3. 尚书省 decides whether to re-dispatch or accept partial results
 
-## 4. Cleanup Requirements
+## 4. Token Budget Enforcement
 
-Before retiring, every agent must:
-- [ ] Discard working memory (unless summarized for short-term promotion)
-- [ ] Close open file handles, database connections, network sockets
-- [ ] Flush pending log entries
-- [ ] Record feedback for consequential actions (feedback loop)
-- [ ] Report final session metrics to coordinator (turns used, tools called, errors)
+吏部 monitors token consumption per task session:
+- Real-time metering of every API call
+- Alert when consumption exceeds 80% of budget (from 尚书省)
+- Hard stop at 120% — agent must report and deactivate
+- Repeated retries trigger alert to 尚书省
 
-## 5. Re-spawn
+## 5. Orphaned Tasks
 
-A retired agent may be re-spawned by the coordinator for a new task. Re-spawned agents:
-- Start with clean context (no carryover from previous session)
-- Load fresh harness rules (rules may have been updated)
-- Receive a new session_id
-- Do NOT inherit previous session's working or short-term memory
-
-## 6. Orphaned Agents
-
-If the coordinator session ends before child agents:
-- Child agents receive `SESSION_END` signal
-- Child agents enter RETIRE immediately
-- Child agents report partial results to session store (not to coordinator directly)
-- Orphaned results are available for retrieval but not automatically aggregated
+If 尚书省 session ends before 六部 complete:
+- 六部 receive SESSION_END signal
+- 六部 enter DEACTIVATE immediately
+- Partial results written to session store
+- Orphaned results available for retrieval but not automatically aggregated

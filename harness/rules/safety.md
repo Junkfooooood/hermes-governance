@@ -8,7 +8,7 @@ Every agent action falls into one of three categories:
 - Read files, databases, web pages (within scope)
 - Execute non-destructive shell commands (ls, git status, npm test)
 - Write to temporary or session-scoped files
-- Send messages to coordinator or parent agent
+- Send messages to 尚书省
 - Query memory stores (read only)
 - Log decisions and outcomes
 
@@ -18,7 +18,7 @@ Every agent action falls into one of three categories:
 - External API calls with side effects (create, update, delete on third-party services)
 - Modifying configuration that affects other agents
 - Accessing credentials or secret stores
-- Spawning child agents (coordinator only, but still requires confirmation for >3)
+- Invoking external software tools (兵部 — requires permission grant from 祖 Agent)
 - Modifying harness rules, skills lifecycle, or memory layer assignments
 - Any operation with blast radius beyond the current session scope
 
@@ -31,6 +31,7 @@ Every agent action falls into one of three categories:
 - Disabling or bypassing safety hooks
 - Ignoring ALERT messages from other agents
 - Operating outside declared role authority
+- 六部 directly communicating with other 六部 (bypassing 尚书省)
 
 ## 2. Destructive Operation Definition
 
@@ -49,6 +50,12 @@ When an agent needs confirmation:
 2. State the blast radius: "This will also remove the cached models — next build will take ~10 min"
 3. State the reversibility: "This is not reversible. Cache will need to be rebuilt."
 4. Wait for explicit approval before proceeding
+
+For 兵部 (external tool invocations):
+1. State which external tool/software will be invoked
+2. State the permission scope required (read/write/execute)
+3. Confirm the tool is in the approved permission list
+4. If not approved, escalate to 祖 Agent for permission grant
 
 ## 4. Input Validation
 
@@ -76,11 +83,22 @@ All outputs must:
 
 ```
 Agent detects safety concern
-  → Issues ALERT to coordinator (priority: critical)
-    → Coordinator pauses affected agents
-      → Safety check: is this a real threat?
-        ├── Yes → Escalate to human
+  → Issues ALERT to 尚书省 (priority: critical)
+    → 尚书省 pauses affected agents
+      → 刑部 safety check: is this a real threat?
+        ├── Yes → Escalate to 祖 Agent → human
         └── No → Log, un-pause, continue
 ```
 
 Safety alerts may NOT be ignored or deprioritized, even if they turn out to be false positives. Every alert gets a resolution record.
+
+## 8. Ministry-Specific Safety
+
+| Ministry | Safety Focus |
+|----------|-------------|
+| 工部 | Code output must pass security scan before submission |
+| 兵部 | External tool invocations must be permission-checked |
+| 刑部 | Owns security verification; may veto any action |
+| 户部 | Data access must respect scope boundaries |
+| 礼部 | Output must not leak sensitive information |
+| 吏部 | Token budget alerts must not be suppressed |

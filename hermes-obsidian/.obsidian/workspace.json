@@ -1,0 +1,245 @@
+{
+  "main": {
+    "id": "7902d88d5e80ab75",
+    "type": "split",
+    "children": [
+      {
+        "id": "c310d7580999cd99",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "902c8cf7f214ac75",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "00-架构总览.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "00-架构总览"
+            }
+          },
+          {
+            "id": "b34df341142ad5da",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "10-治理框架-三省六部.md",
+                "mode": "preview",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "10-治理框架-三省六部"
+            }
+          },
+          {
+            "id": "7d3b0faf34696f33",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "修改意见.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "修改意见"
+            }
+          },
+          {
+            "id": "224d6e95e98d8959",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "10-治理框架-三省六部.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "10-治理框架-三省六部"
+            }
+          }
+        ],
+        "currentTab": 2
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "a68015db8e149216",
+    "type": "split",
+    "children": [
+      {
+        "id": "73f8e5436a04ad48",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "a066cbd051e542ea",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "文件列表"
+            }
+          },
+          {
+            "id": "8058d743449bd341",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "搜索"
+            }
+          },
+          {
+            "id": "4de72dec197801b3",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "书签"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "43d7e022ab298fe2",
+    "type": "split",
+    "children": [
+      {
+        "id": "85a145f77147c76a",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "3e4e68a4ecb2574e",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "修改意见.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "修改意见 的反向链接列表"
+            }
+          },
+          {
+            "id": "42e73a46d8247d0d",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "修改意见.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "修改意见 的出链列表"
+            }
+          },
+          {
+            "id": "0a02b63350b217ba",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "标签"
+            }
+          },
+          {
+            "id": "edd53e6a7cf9a8d1",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "添加笔记属性"
+            }
+          },
+          {
+            "id": "508e23977986651c",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "修改意见.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "修改意见 的大纲"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:打开快速切换": false,
+      "graph:查看关系图谱": false,
+      "canvas:新建白板": false,
+      "daily-notes:打开/创建今天的日记": false,
+      "templates:插入模板": false,
+      "command-palette:打开命令面板": false,
+      "bases:新建数据库": false
+    }
+  },
+  "active": "7d3b0faf34696f33",
+  "lastOpenFiles": [
+    "18-错误处理与容错.md",
+    "17-RL训练系统.md",
+    "16-Web仪表盘.md",
+    "修改意见.md",
+    "10-治理框架-三省六部.md",
+    "00-架构总览.canvas",
+    "08-记忆系统-存储后端.md",
+    "07-记忆系统-插件.md",
+    "06-记忆系统-架构.md",
+    "05-工具系统.md",
+    "00-架构总览.md",
+    "04-模型适配层.md",
+    "01-Agent核心引擎.md"
+  ]
+}

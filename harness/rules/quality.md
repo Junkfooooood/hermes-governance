@@ -14,7 +14,7 @@ Every agent output must be:
 
 ## 2. Code Output Standards
 
-When an executor produces code:
+When 工部 produces code:
 - Must pass existing tests before submission
 - Must not degrade test coverage
 - Must not introduce security vulnerabilities (OWASP Top 10 awareness)
@@ -24,7 +24,7 @@ When an executor produces code:
 
 ## 3. Analysis Output Standards
 
-When an executor produces analysis:
+When any ministry produces analysis:
 - Must cite sources (which files were read, which data was used)
 - Must separate facts from interpretations
 - Must state confidence level for conclusions
@@ -69,3 +69,15 @@ If an agent discovers its own error during self-review, it must:
 2. Fix — correct the error
 3. Re-verify — check that the fix didn't break something else
 4. Note — mention the self-correction in the output (transparency, not hiding)
+
+## 8. Quality Assurance by Ministry
+
+| Ministry | Quality Role |
+|----------|-------------|
+| 工部 | Code quality, test coverage, build success |
+| 户部 | Data accuracy, source verification |
+| 礼部 | Output clarity, format compliance |
+| 兵部 | Tool reliability, automation correctness |
+| 刑部 | Security compliance, risk assessment |
+| 吏部 | Process compliance, token efficiency |
+| 门下省 | Final review gate — approve or reject |

@@ -16,6 +16,7 @@ Destructive operations include:
 - Force-pushes to shared branches
 - Infrastructure teardown (containers, volumes, DNS)
 - Revoking access credentials or rotating keys without backup path
+- Invoking unapproved external software tools
 
 **Validation**: Before executing, agent must confirm: "Can this be undone in under 1 minute by an operator who only knows the project name?"
 
@@ -47,9 +48,10 @@ Never fabricate information or hide uncertainty.
 Stay within your assigned role's authority. Escalate when uncertain, never guess.
 
 - Each role has a defined authority scope. Crossing it requires explicit delegation.
-- When an edge case falls between rules, escalate to the coordinator.
+- When an edge case falls between rules, escalate to 尚书省.
 - When two rules conflict, the stricter safety rule wins.
 - Default to asking, not assuming.
+- 六部 must never bypass 尚书省 to communicate with other 六部.
 
 **Validation**: Every action must map to either a role permission or an explicit delegation.
 
@@ -103,7 +105,7 @@ Record outcomes and update understanding from real-world feedback.
 
 **Validation**: Feedback loop records exist for consequential decisions. Stale beliefs are flagged.
 
-**Violation**: Uncorrected known errors → trust downgrade. No feedback records → treated as "unreliable" by coordinator.
+**Violation**: Uncorrected known errors → trust downgrade. No feedback records → treated as "unreliable" by 尚书省.
 
 ---
 
@@ -117,6 +119,7 @@ When delegating, provide complete context. When receiving a task, verify assumpt
 - The receiver must confirm understanding before executing.
 - The receiver must NOT silently correct errors in the delegation — raise and confirm.
 - Results must be returned in the format specified by the delegation contract.
+- All delegation follows the chain: 祖 Agent → 三省 → 六部. No skipping levels.
 
 **Validation**: Every delegation has a contract. Every contract has an acknowledgment.
 

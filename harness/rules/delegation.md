@@ -1,6 +1,16 @@
 # Delegation Rules
 
-## 1. The Delegation Contract
+## 1. Delegation Chain
+
+All delegation follows the fixed chain:
+
+```
+祖 Agent → 三省 (中书省 → 门下省 → 尚书省) → 六部
+```
+
+No skipping levels. No reverse delegation.
+
+## 2. The Delegation Contract
 
 Every task handoff must use a delegation contract. No contract = no execution.
 
@@ -8,51 +18,61 @@ Every task handoff must use a delegation contract. No contract = no execution.
 
 | Field | Description | Example |
 |-------|-------------|---------|
-| `delegation_id` | Unique identifier | `del_20260428_001` |
-| `task` | Clear, specific task description | "Add rate limiting to the auth middleware" |
-| `success_criteria` | Verifiable conditions | "Tests pass, rate limit triggers at 100req/min, returns 429" |
-| `context_scope` | What files/docs the child can access | `["src/auth/", "docs/auth-flow.md"]` |
-| `authority` | What the child is allowed to do | `["read", "write_files", "run_tests"]` |
-| `deadline` | ISO8601 timestamp | `2026-04-28T15:00:00Z` |
-| `result_format` | Expected return schema | Open-ended text, structured JSON, file path |
+| `delegation_id` | Unique identifier | `del_20260504_001` |
+| `task` | Clear, specific task description | "整理这批网页资料到 Obsidian" |
+| `success_criteria` | Verifiable conditions | "资料已归档到指定目录，笔记格式统一" |
+| `context_scope` | What resources the agent can access | `["obsidian/vault/", "web/sources/"]` |
+| `authority` | What the agent is allowed to do | `["read", "write_files", "browse"]` |
+| `deadline` | ISO8601 timestamp | `2026-05-04T18:00:00Z` |
+| `result_format` | Expected return schema | markdown / json / file_path |
+| `ministry` | Target department | `hubu` / `gongbu` / etc. |
 
 ### Optional Fields
 
 | Field | Description |
 |-------|-------------|
 | `dependencies` | Other delegation IDs this task depends on |
-| `max_iterations` | Maximum Ralph Loop cycles (default: 3) |
+| `max_iterations` | Maximum execution cycles (default: 3) |
 | `priority` | low / normal / high / critical |
-| `parent_context` | Additional background beyond scope |
+| `token_budget` | Token limit for this sub-task |
 
-## 2. Contract Lifecycle
+## 3. Contract Lifecycle
 
 ```
-DRAFT (coordinator)
-  → ISSUED (sent to executor)
-    → ACKNOWLEDGED (executor confirmed understanding)
+DRAFT (尚书省)
+  → DISPATCHED (sent to 六部)
+    → ACKNOWLEDGED (六部 confirmed understanding)
       → IN_PROGRESS (execution started)
-        → COMPLETED (result returned)
-          → UNDER_REVIEW (reviewer evaluating)
-            → APPROVED | REVISED | REJECTED (final state)
-        → BLOCKED (executor cannot proceed)
-          → REVISED (coordinator updates contract)
+        → COMPLETED (result returned to 尚书省)
+          → VERIFIED (尚书省 checks result)
+            → ACCEPTED | REVISED | REJECTED
+        → BLOCKED (六部 cannot proceed)
+          → REVISED (尚书省 updates contract)
         → TIMED_OUT (deadline exceeded)
-          → coordinator decides: extend or reassign
+          → 吏部 alerts 尚书省 → extend or reassign
 ```
 
-## 3. Context Scope Rules
+## 4. 尚书省 Dispatch Logic
 
-The `context_scope` field defines what information the child agent can access.
+尚书省 determines which ministry handles each sub-task:
 
-- **Minimal by default**: only include what the task actually needs.
-- **Explicit paths only**: no wildcard access (no `src/**/*`).
-- **No transitive access**: the child cannot access files referenced by the granted files unless also explicitly listed.
-- **No memory access**: child agents start without memory preload unless `context_scope` includes specific memory pointers.
+| Action Type | Ministry |
+|-------------|----------|
+| 产出型 (code/file/content) | 工部 |
+| 数据型 (data/knowledge/assets) | 户部 |
+| 表达型 (report/summary/presentation) | 礼部 |
+| 自动型 (software/workflow/batch) | 兵部 |
+| 校验型 (security/test/risk) | 刑部 |
+| 治理型 (status/priority/record) | 吏部 |
 
-## 4. Authority Boundaries
+## 5. Context Scope Rules
 
-The `authority` field is an allowlist, not a blocklist.
+- **Minimal by default**: only include what the task actually needs
+- **Explicit paths only**: no wildcard access
+- **No transitive access**: cannot access files referenced by granted files
+- **Pointer-based**: shared state through pointers, not copies
+
+## 6. Authority Boundaries
 
 | Authority Level | Includes |
 |----------------|----------|
@@ -60,27 +80,21 @@ The `authority` field is an allowlist, not a blocklist.
 | `write_files` | Create and modify files within scope |
 | `run_commands` | Execute shell commands (non-destructive) |
 | `run_tests` | Execute test suites |
-| `git_ops` | Git operations (branch, commit — not force-push) |
-| `external_api` | Call external APIs (with coordinator-approved endpoints) |
+| `browse` | Web browsing and automation |
+| `tool_invoke` | Call external tools (ComfyUI, etc.) |
+| `external_api` | Call external APIs |
 
-If an executor needs an authority not in the contract, it must request a contract revision.
+## 7. Timeout & Fallback
 
-## 5. Timeout & Fallback
+- 六部 must report progress if execution exceeds 50% of deadline
+- 吏部 monitors and alerts on timeout
+- 尚书省 may: extend (once, max +50%), reassign, accept partial, or abandon
 
-- Executor must report progress if execution exceeds 50% of deadline.
-- If deadline is reached without a result, the coordinator may:
-  - Extend the deadline (once, max +50%)
-  - Reassign to a different executor
-  - Accept partial results
-  - Abandon the task
-- Executor must NOT silently continue past the deadline.
-
-## 6. Delegation Anti-Patterns
+## 8. Delegation Anti-Patterns
 
 | Anti-Pattern | Why It's Wrong | Fix |
 |-------------|----------------|-----|
 | "Do your best" | No success criteria | Define verifiable outcome |
-| "Fix the bug" | No scope | Specify which files, what the expected behavior is |
-| "Make it better" | Subjective | Define measurable improvement |
-| Delegating to 5+ agents at once | Coordination overhead exceeds benefit | Limit to 3 concurrent, queue the rest |
-| Delegating delegations | Authority leakage | max_spawn_depth = 1 |
+| Delegating to all 6 ministries | Coordination overhead | Only assign relevant ones |
+| 六部 self-assigning tasks | Breaks radial structure | Only 尚书省 dispatches |
+| Skipping 尚书省 | Breaks delegation chain | Always go through the chain |

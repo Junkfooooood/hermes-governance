@@ -2,29 +2,30 @@
 
 ## Purpose
 
-The handshake is the first interaction between a newly spawned agent and the coordinator. It establishes identity, capabilities, and the task contract.
+The handshake is the interaction between 尚书省 and a 六部 agent when dispatching a task. Since agents are **resident roles** (not spawned per task), the handshake activates an idle agent and establishes the task contract.
 
 ## Protocol Flow
 
 ```
-1. Coordinator spawns agent → sends DELEGATE message with contract
-2. Agent loads harness (AGENTS.md → role → constitution)
-3. Agent parses delegation contract
-4. Agent responds with ACK (confirmed) or QUERY (needs clarification)
-5. Coordinator confirms ACK or answers QUERY
-6. Agent enters EXECUTE stage
+1. 尚书省 prepares delegation contract
+2. 尚书省 sends DISPATCH to target 六部 agent
+3. Agent transitions from IDLE → ACTIVATED
+4. Agent loads task context and delegation contract
+5. Agent responds with ACK (confirmed) or QUERY (needs clarification)
+6. 尚书省 confirms ACK or answers QUERY
+7. Agent enters EXECUTE stage
 ```
 
 ## Handshake Messages
 
-### 1. Coordinator → Agent: DELEGATE
+### 1. 尚书省 → 六部: DISPATCH
 
 ```yaml
 ---
 message_id: msg_<uuid>
-from: coordinator_<id>
-to: agent_<id>
-intent: DELEGATE
+from: shangshu
+to: <ministry_agent_id>
+intent: DISPATCH
 priority: normal
 timestamp: <ISO8601>
 trace_id: <uuid>
@@ -45,15 +46,17 @@ delegation:
     schema: <expected structure>
   max_iterations: 3
   priority: normal
+  ministry: <target ministry>
+  token_budget: <optional token limit>
 ```
 
-### 2. Agent → Coordinator: ACK (Confirmed)
+### 2. 六部 → 尚书省: ACK (Confirmed)
 
 ```yaml
 ---
 message_id: msg_<uuid>
-from: agent_<id>
-to: coordinator_<id>
+from: <ministry_agent_id>
+to: shangshu
 intent: ACK
 priority: normal
 timestamp: <ISO8601>
@@ -62,22 +65,21 @@ trace_id: <uuid>
 ack:
   delegation_id: del_<id>
   status: CONFIRMED
-  agent_id: agent_<id>
-  role: executor
+  agent_id: <ministry_agent_id>
+  role: <ministry role>
   capabilities:
     tools: [<available tools>]
-    domain: <if specialist>
+    domain: <declared domain>
   current_load: busy
-  session_id: sess_<id>
 ```
 
-### 3. Agent → Coordinator: QUERY (Needs Clarification)
+### 3. 六部 → 尚书省: QUERY (Needs Clarification)
 
 ```yaml
 ---
 message_id: msg_<uuid>
-from: agent_<id>
-to: coordinator_<id>
+from: <ministry_agent_id>
+to: shangshu
 intent: QUERY
 priority: normal
 timestamp: <ISO8601>
@@ -94,8 +96,9 @@ query:
 
 ## Handshake Rules
 
-1. Agent must respond within 30 seconds of receiving DELEGATE.
-2. If clarification is needed, coordinator must respond within 60 seconds.
+1. Agent must respond within 30 seconds of receiving DISPATCH.
+2. If clarification is needed, 尚书省 must respond within 60 seconds.
 3. Agent must NOT begin execution before ACK is confirmed.
 4. If agent cannot execute (missing tools, insufficient authority), it must report in ACK with `status: REJECTED` and reason.
 5. Handshake is logged as part of the audit trail.
+6. Only 尚书省 can initiate handshakes — 六部 cannot handshake with each other.
