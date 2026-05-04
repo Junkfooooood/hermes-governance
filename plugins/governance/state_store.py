@@ -11,7 +11,10 @@ from typing import Dict, List, Optional
 from .models import (
     AgentLifecycle,
     AgentRole,
+    BoulderState,
+    DecisionLog,
     GovernanceTransaction,
+    NotepadWisdom,
     ResidentAgentState,
     TransactionState,
 )
@@ -28,8 +31,10 @@ class GovernanceStateStore:
         self._active_locks: Dict[str, str] = {}  # role -> contract_id
 
         # Ensure directories exist
+        self._memory_dir = self._state_dir / "memory"
         self._agent_dir.mkdir(parents=True, exist_ok=True)
         self._txn_dir.mkdir(parents=True, exist_ok=True)
+        self._memory_dir.mkdir(parents=True, exist_ok=True)
 
     # --- Agent State ---
 
@@ -134,3 +139,88 @@ class GovernanceStateStore:
             except (json.JSONDecodeError, TypeError):
                 continue
         return pending
+
+    # --- Structured Memory (Boulder State, Decision Log, Notepad Wisdom) ---
+
+    def load_boulder_state(self) -> BoulderState:
+        """Load project state tracker."""
+        path = self._memory_dir / "boulder_state.json"
+        if path.exists():
+            try:
+                return BoulderState(**json.loads(path.read_text()))
+            except (json.JSONDecodeError, TypeError):
+                pass
+        return BoulderState()
+
+    def save_boulder_state(self, state: BoulderState) -> None:
+        """Save project state tracker."""
+        state.last_updated = datetime.now(timezone.utc).isoformat()
+        path = self._memory_dir / "boulder_state.json"
+        tmp_path = path.with_suffix(".tmp")
+        tmp_path.write_text(json.dumps(asdict(state), indent=2, ensure_ascii=False, default=str))
+        os.replace(str(tmp_path), str(path))
+
+    def load_decision_log(self) -> DecisionLog:
+        """Load decision log."""
+        path = self._memory_dir / "decision_log.json"
+        if path.exists():
+            try:
+                return DecisionLog(**json.loads(path.read_text()))
+            except (json.JSONDecodeError, TypeError):
+                pass
+        return DecisionLog()
+
+    def save_decision_log(self, log: DecisionLog) -> None:
+        """Save decision log."""
+        path = self._memory_dir / "decision_log.json"
+        tmp_path = path.with_suffix(".tmp")
+        tmp_path.write_text(json.dumps(asdict(log), indent=2, ensure_ascii=False, default=str))
+        os.replace(str(tmp_path), str(path))
+
+    def append_decision(self, txn: GovernanceTransaction) -> None:
+        """Append a completed transaction to the decision log."""
+        log = self.load_decision_log()
+        log.entries.append({
+            "txn_id": txn.transaction_id,
+            "goal": txn.goal[:200],
+            "verdict": txn.review_verdict,
+            "plan_summary": str(txn.plan)[:300] if txn.plan else None,
+            "sub_task_count": len(txn.sub_tasks),
+            "result_count": len(txn.results),
+            "verify_passed": txn.verify_result.get("passed") if txn.verify_result else None,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+        # Keep last 100 entries
+        if len(log.entries) > 100:
+            log.entries = log.entries[-100:]
+        self.save_decision_log(log)
+
+    def load_notepad_wisdom(self) -> NotepadWisdom:
+        """Load notepad wisdom (patterns, pitfalls, best practices)."""
+        path = self._memory_dir / "notepad_wisdom.json"
+        if path.exists():
+            try:
+                return NotepadWisdom(**json.loads(path.read_text()))
+            except (json.JSONDecodeError, TypeError):
+                pass
+        return NotepadWisdom()
+
+    def save_notepad_wisdom(self, wisdom: NotepadWisdom) -> None:
+        """Save notepad wisdom."""
+        path = self._memory_dir / "notepad_wisdom.json"
+        tmp_path = path.with_suffix(".tmp")
+        tmp_path.write_text(json.dumps(asdict(wisdom), indent=2, ensure_ascii=False, default=str))
+        os.replace(str(tmp_path), str(path))
+
+    def add_wisdom(self, pattern: str, context: str, discovered_by: str) -> None:
+        """Add a new wisdom entry."""
+        wisdom = self.load_notepad_wisdom()
+        wisdom.patterns.append({
+            "pattern": pattern,
+            "context": context,
+            "discovered_by": discovered_by,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+        if len(wisdom.patterns) > 200:
+            wisdom.patterns = wisdom.patterns[-200:]
+        self.save_notepad_wisdom(wisdom)

@@ -28,14 +28,22 @@ class AgentLifecycle(enum.Enum):
 
 class TransactionState(enum.Enum):
     CREATED = "created"
+    INTERVIEW = "interview"               # Deep Interview (中书省澄清)
+    INTERVIEW_COMPLETE = "interview_complete"
     PLAN = "plan"
     PLAN_COMPLETE = "plan_complete"
     REVIEW = "review"
-    REVIEW_COMPLETE = "review_complete"
+    REVIEW_SPEC_COMPLETE = "review_spec_complete"    # spec compliance 完成
+    REVIEW_QUALITY = "review_quality"                 # code quality 审核
+    REVIEW_QUALITY_COMPLETE = "review_quality_complete"
+    DECOMPOSE = "decompose"                           # 任务分解
+    DECOMPOSE_COMPLETE = "decompose_complete"
     DISPATCH = "dispatch"
     DISPATCH_COMPLETE = "dispatch_complete"
     EXECUTE = "execute"
     EXECUTE_COMPLETE = "execute_complete"
+    VERIFY = "verify"                                 # 刑部验证
+    VERIFY_COMPLETE = "verify_complete"
     INTEGRATE = "integrate"
     COMPLETE = "complete"
     REJECTED = "rejected"
@@ -78,6 +86,46 @@ class ResidentAgentState:
 
 
 @dataclass
+class InterviewRecord:
+    """Deep Interview 问答记录。"""
+    questions: List[Dict[str, str]] = field(default_factory=list)
+    # [{"question": "...", "answer": "...", "timestamp": "..."}]
+    clarity_score: float = 0.0         # 0-1, 需求清晰度
+    assumptions: List[str] = field(default_factory=list)
+    confirmed: bool = False
+
+
+@dataclass
+class BoulderState:
+    """
+    项目状态跟踪 — 类似 OMC 的 Boulder State。
+    记录当前有哪些任务在进行、哪些被阻塞、哪些已完成。
+    """
+    active_goals: List[Dict[str, Any]] = field(default_factory=list)
+    blocked_goals: List[Dict[str, Any]] = field(default_factory=list)
+    completed_goals: List[Dict[str, Any]] = field(default_factory=list)
+    last_updated: str = ""
+
+
+@dataclass
+class DecisionLog:
+    """决策日志 — 记录每次治理链的决策过程和结果。"""
+    entries: List[Dict[str, Any]] = field(default_factory=list)
+    # [{"txn_id": "...", "goal": "...", "verdict": "...", "plan_summary": "...",
+    #   "outcome": "...", "lessons": "...", "timestamp": "..."}]
+
+
+@dataclass
+class NotepadWisdom:
+    """
+    教训记忆 — agent 执行过程中发现的模式、陷阱、最佳实践。
+    类似 OMC 的 Notepad Wisdom。
+    """
+    patterns: List[Dict[str, str]] = field(default_factory=list)
+    # [{"pattern": "...", "context": "...", "discovered_by": "...", "timestamp": "..."}]
+
+
+@dataclass
 class GovernanceTransaction:
     """A complete governance chain transaction. Serializable for crash recovery."""
     transaction_id: str                # txn_<uuid>
@@ -85,13 +133,18 @@ class GovernanceTransaction:
     context: str
     priority: str
     state: str = "created"             # TransactionState.value
+    interview: Optional[Dict[str, Any]] = None       # Deep Interview 结果
     plan: Optional[Dict[str, Any]] = None
     review_verdict: Optional[str] = None   # "approve" / "reject" / "revise"
     review_notes: Optional[str] = None
+    spec_review: Optional[Dict[str, Any]] = None      # spec compliance 审核结果
+    quality_review: Optional[Dict[str, Any]] = None    # code quality 审核结果
     revision_count: int = 0
     revision_history: List[Dict[str, Any]] = field(default_factory=list)
+    sub_tasks: List[Dict[str, Any]] = field(default_factory=list)    # 分解后的子任务
     contracts: List[Dict[str, Any]] = field(default_factory=list)
     results: List[Dict[str, Any]] = field(default_factory=list)
+    verify_result: Optional[Dict[str, Any]] = None    # 刑部验证结果
     integrated_result: Optional[str] = None
     audit_trail: List[Dict[str, Any]] = field(default_factory=list)
     created_at: str = ""

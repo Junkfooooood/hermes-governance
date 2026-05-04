@@ -1,13 +1,16 @@
 """三省六部治理框架插件."""
 
-from .governance_hook import on_pre_tool_call
+from .governance_hook import on_pre_tool_call, on_session_end
 from .governance_tool import GOVERNANCE_COMMITTEE_SCHEMA, governance_committee_handler
 
 
 def register(ctx) -> None:
     """Register governance hooks and tools with the plugin system."""
-    # Hook: intercept delegate_task in strict mode
+    # Hook: intercept delegate_task with hard gate
     ctx.register_hook("pre_tool_call", on_pre_tool_call)
+
+    # Hook: session reset auto-summary to memory
+    ctx.register_hook("on_session_end", on_session_end)
 
     # Tool: governance_committee
     ctx.register_tool(

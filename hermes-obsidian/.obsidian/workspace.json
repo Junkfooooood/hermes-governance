@@ -41,12 +41,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "修改意见.md",
+                "file": "13-技能系统.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "修改意见"
+              "title": "13-技能系统"
             }
           },
           {
@@ -137,7 +137,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "修改意见.md",
+                "file": "13-技能系统.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -147,7 +147,7 @@
                 "unlinkedCollapsed": true
               },
               "icon": "links-coming-in",
-              "title": "修改意见 的反向链接列表"
+              "title": "13-技能系统 的反向链接列表"
             }
           },
           {
@@ -156,12 +156,12 @@
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "修改意见.md",
+                "file": "13-技能系统.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               },
               "icon": "links-going-out",
-              "title": "修改意见 的出链列表"
+              "title": "13-技能系统 的出链列表"
             }
           },
           {
@@ -199,13 +199,13 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "修改意见.md",
+                "file": "13-技能系统.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "修改意见 的大纲"
+              "title": "13-技能系统 的大纲"
             }
           }
         ]
@@ -228,10 +228,12 @@
   },
   "active": "7d3b0faf34696f33",
   "lastOpenFiles": [
+    "12-浏览器工具.md",
+    "11-网关系统.md",
+    "修改意见.md",
     "18-错误处理与容错.md",
     "17-RL训练系统.md",
     "16-Web仪表盘.md",
-    "修改意见.md",
     "10-治理框架-三省六部.md",
     "00-架构总览.canvas",
     "08-记忆系统-存储后端.md",
