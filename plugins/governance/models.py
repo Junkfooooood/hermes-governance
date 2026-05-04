@@ -158,3 +158,11 @@ class GovernanceResult:
     integrated_result: Optional[str] = None
     audit_trail: List[Dict[str, Any]] = field(default_factory=list)
     error: Optional[str] = None
+
+
+@dataclass
+class ValidationResult:
+    """Result of a mechanical rule validation check."""
+    passed: bool
+    issues: List[str] = field(default_factory=list)
+    token_count: int = 0

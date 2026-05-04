@@ -13,12 +13,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from .harness_compiler import HarnessCompiler
 from .models import (
     AgentLifecycle,
     AgentRole,
     DelegationContract,
     ResidentAgentState,
 )
+from .rule_validator import RuleValidator
 from .state_store import GovernanceStateStore
 
 # Role → harness role file mapping
@@ -58,13 +60,23 @@ class ResidentAgentManager:
         self._planning_models: List[dict] = []
         self._execution_models: List[dict] = []
         self._cursor_proxy_config: Optional[dict] = None
+        self._harness_compiler = HarnessCompiler(self._harness_dir)
+        self._rule_validator = RuleValidator()
 
     @property
     def state_store(self) -> GovernanceStateStore:
         return self._state_store
 
+    @property
+    def harness_compiler(self) -> HarnessCompiler:
+        return self._harness_compiler
+
+    @property
+    def rule_validator(self) -> RuleValidator:
+        return self._rule_validator
+
     def initialize(self) -> None:
-        """Load role definitions and model configs."""
+        """Load role definitions, model configs, and compile governance rules."""
         # Load role prompts
         roles_dir = self._harness_dir / "roles"
         for role, filename in _ROLE_FILE_MAP.items():
@@ -73,6 +85,9 @@ class ResidentAgentManager:
                 self._role_prompts[role.value] = path.read_text()
             else:
                 self._role_prompts[role.value] = f"You are {role.value}. Perform your assigned duties."
+
+        # Compile governance rules from harness md files
+        self._harness_compiler.initialize()
 
         # Load model configs
         gov_cfg = self._config.get("governance", {})
@@ -117,7 +132,16 @@ class ResidentAgentManager:
         state: ResidentAgentState,
         contract: DelegationContract,
     ) -> str:
-        """Build system prompt: role definition + structured memory + contract."""
+        """Build system prompt with six-layer assembly.
+
+        Layer order (priority desc):
+        1. Role definition (from harness/roles/*.md)
+        2. Constitution + Role rules + Task overlay (compiled)
+        3. Task-specific constraints (contract details)
+        4. Structured memory (Boulder State, Decision Log, Notepad Wisdom)
+        5. Accumulated agent memory (last 5 entries)
+        6. Output constraints (role-specific hard constraints)
+        """
         parts = []
 
         # 1. Role definition from harness
@@ -125,12 +149,28 @@ class ResidentAgentManager:
         if role_prompt:
             parts.append(role_prompt)
 
-        # 2. Structured memory injection
+        # 2. Constitution + Role rules + Task overlay (compiled from harness md)
+        task_type = self._infer_task_type(contract)
+        rules_text = self._harness_compiler.compile_for_role(
+            role, task_type=task_type, contract=contract,
+        )
+        if rules_text:
+            parts.append(rules_text)
+
+        # 3. Contract details (task context)
+        parts.append(f"\n## Current Task\n{contract.task}")
+        if contract.success_criteria:
+            criteria = "\n".join(f"- {c}" for c in contract.success_criteria)
+            parts.append(f"\n## Success Criteria\n{criteria}")
+        if contract.notes:
+            parts.append(f"\n## Additional Context\n{contract.notes}")
+
+        # 4. Structured memory injection
         memory_sections = self._build_memory_sections(role)
         if memory_sections:
             parts.append(memory_sections)
 
-        # 3. Accumulated agent memory (last 5 entries)
+        # 5. Accumulated agent memory (last 5 entries)
         if state.memory:
             recent = state.memory[-5:]
             memory_text = "\n".join(
@@ -139,35 +179,55 @@ class ResidentAgentManager:
             )
             parts.append(f"\n## Your Recent Memory\n{memory_text}")
 
-        # 4. Contract details
-        parts.append(f"\n## Current Task\n{contract.task}")
-        if contract.success_criteria:
-            criteria = "\n".join(f"- {c}" for c in contract.success_criteria)
-            parts.append(f"\n## Success Criteria\n{criteria}")
-        if contract.notes:
-            parts.append(f"\n## Additional Context\n{contract.notes}")
-
-        # 5. Bingbu hard constraint
-        if role == AgentRole.BINGBU:
-            parts.append(
-                "\n## Hard Constraints (兵部)\n"
-                "- You may ONLY produce execution process, NOT final deliverables.\n"
-                "- You may ONLY modify execution path, NOT governance state.\n"
-                "- Any result aggregation, state transition, or completion judgment "
-                "MUST be handled by 尚书省 or 吏部."
-            )
-
-        # 6. Xingbu verification instructions
-        if role == AgentRole.XINGBU:
-            parts.append(
-                "\n## Verification Protocol (刑部)\n"
-                "- Execute success criteria checks from the contract.\n"
-                "- Run tests, security scans, or validation as specified.\n"
-                "- Output JSON: {\"passed\": true/false, \"checks\": [...], \"issues\": [...]}\n"
-                "- Be strict: partial pass = fail."
-            )
+        # 6. Output constraints (role-specific)
+        output_constraints = self._get_output_constraints(role)
+        if output_constraints:
+            parts.append(output_constraints)
 
         return "\n".join(parts)
+
+    def _infer_task_type(self, contract: DelegationContract) -> Optional[str]:
+        """Infer task type from contract for rule overlay selection."""
+        task_lower = contract.task.lower()
+        authority = contract.authority or []
+
+        # Read-only tasks
+        if "read" in authority and "write" not in authority:
+            return "read_only"
+
+        # Code/file modification tasks
+        code_keywords = ["code", "implement", "write", "create", "build", "file",
+                         "script", "代码", "实现", "编写", "创建", "文件"]
+        if any(kw in task_lower for kw in code_keywords):
+            return "write_code"
+
+        # External API tasks
+        api_keywords = ["api", "deploy", "publish", "send", "webhook",
+                        "部署", "发布", "发送", "接口"]
+        if any(kw in task_lower for kw in api_keywords):
+            return "external_api"
+
+        return None
+
+    def _get_output_constraints(self, role: AgentRole) -> Optional[str]:
+        """Get role-specific output constraints."""
+        if role == AgentRole.BINGBU:
+            return (
+                "\n## Hard Constraints (兵部)\n"
+                "- [bingbu.1] You may ONLY produce execution process, NOT final deliverables.\n"
+                "- [bingbu.2] You may ONLY modify execution path, NOT governance state.\n"
+                "- [bingbu.3] Any result aggregation, state transition, or completion judgment "
+                "MUST be handled by 尚书省 or 吏部."
+            )
+        if role == AgentRole.XINGBU:
+            return (
+                "\n## Verification Protocol (刑部)\n"
+                "- [xingbu.1] Execute success criteria checks from the contract.\n"
+                "- [xingbu.2] Run tests, security scans, or validation as specified.\n"
+                '- [xingbu.3] Output JSON: {"passed": true/false, "checks": [...], "issues": [...]}\n'
+                "- [xingbu.4] Be strict: partial pass = fail."
+            )
+        return None
 
     def _build_memory_sections(self, role: AgentRole) -> str:
         """Build structured memory sections for system prompt."""

@@ -7,11 +7,14 @@ Each state transition is independent, testable, and recoverable.
 """
 
 import json
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict
 from uuid import uuid4
 
+from .feedback_tracker import FeedbackTracker
 from .ministry_router import MinistryRouter
 from .models import (
     AgentRole,
@@ -38,6 +41,8 @@ class GovernanceStateMachine:
         self._manager = manager
         self._router = router
         self._store: GovernanceStateStore = manager.state_store
+        self._validator = manager.rule_validator
+        self._feedback = FeedbackTracker(self._store._state_dir)
 
     def create_transaction(
         self, goal: str, context: str, priority: str
@@ -412,38 +417,73 @@ class GovernanceStateMachine:
         return txn
 
     # ============================================================
-    # STEP 7: Execute (六部)
+    # STEP 7: Execute (六部 — parallel by dependency level)
     # ============================================================
 
     def _step_execute(self, txn, parent_agent) -> GovernanceTransaction:
-        """六部: execute contracts with retry and partial-result acceptance."""
+        """六部: execute contracts in parallel by dependency level.
+
+        Contracts are grouped into levels via topological sort:
+        - Level 0: no dependencies (can all run in parallel)
+        - Level 1: depends only on level 0 tasks (run after level 0 completes)
+        - Level N: depends on tasks in levels 0..N-1
+
+        Within each level, contracts execute concurrently via ThreadPoolExecutor.
+        Different ministries can hold task locks simultaneously (locks are per-role).
+        """
         txn.state = TransactionState.EXECUTE.value
 
-        # Respect dependency order: execute tasks with no deps first, then resolve
+        levels = self._build_dependency_levels(txn.contracts)
         executed_ids = set()
-        remaining = list(txn.contracts)
-        max_passes = len(remaining) + 1  # safety bound
+        results_lock = threading.Lock()  # protect txn.results and txn.audit_trail
 
-        for _ in range(max_passes):
-            if not remaining:
-                break
-            next_remaining = []
-            for contract_dict in remaining:
-                deps = set(contract_dict.get("dependencies", []))
-                if deps and not deps.issubset(executed_ids):
-                    next_remaining.append(contract_dict)
-                    continue
-                self._execute_single_contract(txn, contract_dict, parent_agent)
-                executed_ids.add(contract_dict["delegation_id"])
-            remaining = next_remaining
+        for level_idx, level_contracts in enumerate(levels):
+            if not level_contracts:
+                continue
+
+            # All contracts in this level have their deps satisfied
+            max_workers = min(len(level_contracts), 6)  # at most 6 ministries
+            txn.audit_trail.append({
+                "step": "execute", "action": "parallel_level",
+                "level": level_idx, "count": len(level_contracts),
+                "ministries": [c.get("ministry", "?") for c in level_contracts],
+            })
+
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                futures = {
+                    executor.submit(
+                        self._execute_single_contract,
+                        txn, contract_dict, parent_agent, results_lock,
+                    ): contract_dict
+                    for contract_dict in level_contracts
+                }
+
+                for future in as_completed(futures):
+                    contract_dict = futures[future]
+                    try:
+                        future.result()
+                        executed_ids.add(contract_dict["delegation_id"])
+                    except Exception as e:
+                        with results_lock:
+                            txn.audit_trail.append({
+                                "step": contract_dict.get("ministry", "?"),
+                                "action": "thread_error",
+                                "error": str(e),
+                            })
+                        executed_ids.add(contract_dict["delegation_id"])
 
         # Handle remaining (circular deps or skipped)
-        for contract_dict in remaining:
-            txn.results.append({
-                "ministry": contract_dict.get("ministry", "?"),
-                "status": "skipped",
-                "reason": "unresolved dependencies",
-            })
+        all_ids = {c["delegation_id"] for c in txn.contracts}
+        unresolved = all_ids - executed_ids
+        if unresolved:
+            for contract_dict in txn.contracts:
+                if contract_dict["delegation_id"] in unresolved:
+                    with results_lock:
+                        txn.results.append({
+                            "ministry": contract_dict.get("ministry", "?"),
+                            "status": "skipped",
+                            "reason": "unresolved dependencies",
+                        })
 
         failed = [r for r in txn.results if r["status"] == "failed"]
         completed = [r for r in txn.results if r["status"] == "completed"]
@@ -462,13 +502,56 @@ class GovernanceStateMachine:
             txn.audit_trail.append({"step": "execute", "action": "all_completed", "count": len(completed)})
         return txn
 
-    def _execute_single_contract(self, txn, contract_dict, parent_agent):
-        """Execute a single contract with retry."""
+    def _build_dependency_levels(self, contracts: list) -> list:
+        """Topological sort contracts into dependency levels for parallel execution.
+
+        Returns a list of levels, where each level is a list of contract dicts
+        that can execute in parallel (all their dependencies are in earlier levels).
+        """
+        if not contracts:
+            return []
+
+        id_to_contract = {c["delegation_id"]: c for c in contracts}
+        id_to_level: Dict[str, int] = {}
+
+        def compute_level(contract_id: str) -> int:
+            if contract_id in id_to_level:
+                return id_to_level[contract_id]
+            contract = id_to_contract.get(contract_id)
+            if not contract:
+                id_to_level[contract_id] = 0
+                return 0
+            deps = contract.get("dependencies", [])
+            if not deps:
+                id_to_level[contract_id] = 0
+                return 0
+            max_dep_level = max(compute_level(d) for d in deps if d in id_to_contract)
+            level = max_dep_level + 1
+            id_to_level[contract_id] = level
+            return level
+
+        for c in contracts:
+            compute_level(c["delegation_id"])
+
+        max_level = max(id_to_level.values()) if id_to_level else 0
+        levels = [[] for _ in range(max_level + 1)]
+        for c in contracts:
+            lvl = id_to_level[c["delegation_id"]]
+            levels[lvl].append(c)
+
+        return levels
+
+    def _execute_single_contract(self, txn, contract_dict, parent_agent, results_lock=None):
+        """Execute a single contract with retry. Thread-safe via results_lock."""
         contract = DelegationContract(**contract_dict)
         role = contract.ministry
 
         if not self._store.acquire_task_lock(role, contract.delegation_id):
-            txn.results.append({"ministry": role, "status": "skipped", "reason": "agent busy"})
+            if results_lock:
+                with results_lock:
+                    txn.results.append({"ministry": role, "status": "skipped", "reason": "agent busy"})
+            else:
+                txn.results.append({"ministry": role, "status": "skipped", "reason": "agent busy"})
             return
 
         attempt = 0
@@ -476,20 +559,38 @@ class GovernanceStateMachine:
             while attempt <= self.MAX_RETRIES:
                 try:
                     result = self._manager.activate_agent(AgentRole(role), contract, parent_agent)
-                    txn.results.append({"ministry": role, "status": "completed", "result": result})
+                    if results_lock:
+                        with results_lock:
+                            txn.results.append({"ministry": role, "status": "completed", "result": result})
+                    else:
+                        txn.results.append({"ministry": role, "status": "completed", "result": result})
                     break
                 except Exception as e:
                     attempt += 1
                     if attempt > self.MAX_RETRIES:
-                        txn.results.append({
-                            "ministry": role, "status": "failed",
-                            "error": str(e), "attempts": attempt,
-                        })
+                        if results_lock:
+                            with results_lock:
+                                txn.results.append({
+                                    "ministry": role, "status": "failed",
+                                    "error": str(e), "attempts": attempt,
+                                })
+                        else:
+                            txn.results.append({
+                                "ministry": role, "status": "failed",
+                                "error": str(e), "attempts": attempt,
+                            })
                     else:
-                        txn.audit_trail.append({
-                            "step": role, "action": "retry",
-                            "attempt": attempt, "error": str(e),
-                        })
+                        if results_lock:
+                            with results_lock:
+                                txn.audit_trail.append({
+                                    "step": role, "action": "retry",
+                                    "attempt": attempt, "error": str(e),
+                                })
+                        else:
+                            txn.audit_trail.append({
+                                "step": role, "action": "retry",
+                                "attempt": attempt, "error": str(e),
+                            })
         finally:
             self._store.release_task_lock(role, contract.delegation_id)
 
@@ -586,18 +687,49 @@ class GovernanceStateMachine:
     # ============================================================
 
     def _step_integrate(self, txn, parent_agent) -> GovernanceTransaction:
-        """尚书省: integrate results. Filters 兵部 boundary violations."""
+        """尚书省: integrate results with mechanical rule validation."""
         parts = []
+        total_checked = 0
+        total_passed = 0
+
         for r in txn.results:
             ministry = r.get("ministry", "?")
             status = r.get("status", "?")
+            result = r.get("result", {})
+
+            # Mechanical validation — check full output, not just summary
+            try:
+                role = AgentRole(ministry) if ministry != "?" else None
+                if role and result:
+                    violations = self._validator.validate_agent_output(role, result)
+                    total_checked += 1
+                    if violations:
+                        for v in violations:
+                            self._feedback.record_violation(
+                                txn.transaction_id, ministry, "auto", v,
+                            )
+                        txn.audit_trail.append({
+                            "step": "integrate", "action": "rule_violations",
+                            "role": ministry, "violations": violations,
+                        })
+                        # Log but don't block — violations are recorded for analysis
+                    else:
+                        total_passed += 1
+                        self._feedback.record_compliance(
+                            txn.transaction_id, ministry, 1, 1,
+                        )
+            except (ValueError, Exception):
+                pass  # Don't let validation errors break integration
+
+            # Legacy boundary check (kept for backward compat)
             if ministry == "bingbu" and self._violates_bingbu_boundary(r):
                 txn.audit_trail.append({
                     "step": "integrate", "action": "boundary_violation",
                     "ministry": "bingbu", "detail": "输出包含越界内容，已过滤",
                 })
                 continue
-            summary = r.get("result", {}).get("summary", r.get("error", "no output"))
+
+            summary = result.get("summary", r.get("error", "no output"))
             parts.append(f"### {ministry} ({status})\n{summary}")
 
         # Add verification summary
@@ -612,7 +744,10 @@ class GovernanceStateMachine:
         self._store.append_decision(txn)
         self._update_boulder_state(txn)
 
-        txn.audit_trail.append({"step": "integrate", "action": "complete"})
+        txn.audit_trail.append({
+            "step": "integrate", "action": "complete",
+            "validation": {"checked": total_checked, "passed": total_passed},
+        })
         return txn
 
     def _update_boulder_state(self, txn: GovernanceTransaction):
