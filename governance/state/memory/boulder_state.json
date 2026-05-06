@@ -1,0 +1,13 @@
+{
+  "active_goals": [],
+  "blocked_goals": [],
+  "completed_goals": [
+    {
+      "txn_id": "txn_33a6e007826b",
+      "goal": "做一个会议纪要网页应用，要求：\n1. 通过麦克风收录语音（Web Audio API / MediaRecorder）\n2. 语音转文字（可用 Web Speech API 或 Whisper）\n3. 将转写的文字通过 AI 进行总结复盘，输出结构化的会议纪要\n4. 界面简洁美观，支持导出\n\n技术栈：单页 HTML + JavaScript，不需要后端，可选调用外部 API。",
+      "status": "completed",
+      "timestamp": "2026-05-04T17:01:40.783483+00:00"
+    }
+  ],
+  "last_updated": "2026-05-04T17:01:40.783496+00:00"
+}

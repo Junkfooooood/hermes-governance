@@ -37,12 +37,13 @@ class GovernanceStateMachine:
     ACCEPT_PARTIAL = True
     MAX_VERIFY_RETRIES = 2  # 刑部验证失败最多重试 2 次
 
-    def __init__(self, manager: ResidentAgentManager, router: MinistryRouter):
+    def __init__(self, manager: ResidentAgentManager, router: MinistryRouter, event_callback=None):
         self._manager = manager
         self._router = router
         self._store: GovernanceStateStore = manager.state_store
         self._validator = manager.rule_validator
         self._feedback = FeedbackTracker(self._store._state_dir)
+        self._event_callback = event_callback
 
     def create_transaction(
         self, goal: str, context: str, priority: str
@@ -56,6 +57,12 @@ class GovernanceStateMachine:
             created_at=datetime.now(timezone.utc).isoformat(),
         )
         self._store.save_transaction(txn)
+        if self._event_callback:
+            self._event_callback(
+                txn_id=txn.transaction_id,
+                event_type="transaction.created",
+                payload={"goal": txn.goal, "priority": txn.priority, "state": txn.state},
+            )
         return txn
 
     def advance(
@@ -72,10 +79,22 @@ class GovernanceStateMachine:
             try:
                 txn = handler(txn, parent_agent)
                 self._store.save_transaction(txn)
+                if self._event_callback:
+                    self._event_callback(
+                        txn_id=txn.transaction_id,
+                        event_type="state.transition",
+                        payload={"state": txn.state, "step": handler.__name__},
+                    )
             except Exception as e:
                 txn.state = TransactionState.ERROR.value
                 txn.audit_trail.append({"step": txn.state, "error": str(e)})
                 self._store.save_transaction(txn)
+                if self._event_callback:
+                    self._event_callback(
+                        txn_id=txn.transaction_id,
+                        event_type="transaction.error",
+                        payload={"error": str(e), "state": txn.state},
+                    )
                 break
         return txn
 

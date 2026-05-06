@@ -1,0 +1,24 @@
+{
+  "agent_id": "agent_shangshu",
+  "role": "shangshu",
+  "tier": "ministry",
+  "lifecycle": "deactivate",
+  "version": 2,
+  "updated_at": "2026-05-04T17:01:23.092549+00:00",
+  "active_contract_id": null,
+  "memory": [
+    {
+      "timestamp": "2026-05-04T17:01:23.092424+00:00",
+      "contract_id": "decompose_txn_33a6e007826b",
+      "summary": "",
+      "outcome": "empty"
+    }
+  ],
+  "completed_contracts": [
+    "decompose_txn_33a6e007826b"
+  ],
+  "total_tokens_consumed": 1,
+  "total_tasks_completed": 1,
+  "trust_score": 1.0,
+  "last_activated": "2026-05-04T17:01:20.480433+00:00"
+}

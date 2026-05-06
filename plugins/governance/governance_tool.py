@@ -8,6 +8,7 @@ from .ministry_router import MinistryRouter
 from .models import GovernanceResult, TransactionState
 from .resident_manager import ResidentAgentManager
 from .state_machine import GovernanceStateMachine
+from .event_bus import get_bus
 
 GOVERNANCE_COMMITTEE_SCHEMA = {
     "name": "governance_committee",
@@ -101,7 +102,10 @@ def governance_committee_handler(args: Dict[str, Any], **kwargs) -> str:
     manager = ResidentAgentManager(config=config)
     manager.initialize()
     router = MinistryRouter()
-    sm = GovernanceStateMachine(manager, router)
+
+    # Wire event bus for dashboard real-time monitoring
+    bus = get_bus()
+    sm = GovernanceStateMachine(manager, router, event_callback=bus.emit)
 
     # Create transaction
     txn = sm.create_transaction(goal, context, priority)

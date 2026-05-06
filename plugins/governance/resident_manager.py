@@ -269,49 +269,80 @@ class ResidentAgentManager:
     def _get_model_for_role(self, role: AgentRole, parent_agent=None) -> str:
         """
         Get model string for a role.
-        三省 → planning models (deepseek-v4-pro, mimo-2.5-pro, opus via cursor)
-        六部 → execution models (minimax-m2.7, deepseek-v4-flash)
+        1. Check role_models for explicit per-role mapping
+        2. Fall back to planning_models / execution_models by tier
         """
-        if role in _PLANNING_ROLES:
-            # Try Cursor proxy first for Opus
-            if self._cursor_proxy_config and role == AgentRole.ZHONGSHU:
-                return self._cursor_proxy_config.get("model", "")
+        # 1. Role-specific override
+        role_models = self._config.get("governance", {}).get("role_models", {})
+        role_cfg = role_models.get(role.value)
+        if role_cfg and role_cfg.get("model"):
+            return role_cfg["model"]
 
-            # Use first available planning model
+        # 2. Tier-based fallback
+        if role in _PLANNING_ROLES:
             for model_cfg in self._planning_models:
-                provider = model_cfg.get("provider", "")
                 model = model_cfg.get("model", "")
-                if provider == "cursor" and self._cursor_proxy_config:
-                    return self._cursor_proxy_config.get("model", "")
                 if model:
                     return model
-
-            # Default planning model
             default = self._config.get("governance", {}).get("default_planning_model", {})
             return default.get("model", "")
 
         elif role in _EXECUTION_ROLES:
-            # Use first available execution model
             for model_cfg in self._execution_models:
                 model = model_cfg.get("model", "")
                 if model:
                     return model
-
-            # Default execution model
             default = self._config.get("governance", {}).get("default_execution_model", {})
             return default.get("model", "")
 
         return ""
 
+    def _get_provider_for_role(self, role: AgentRole) -> str:
+        """
+        Get provider string for a role.
+        1. Check role_models for explicit per-role provider
+        2. Fall back to planning_models / execution_models by tier
+        """
+        # 1. Role-specific override
+        role_models = self._config.get("governance", {}).get("role_models", {})
+        role_cfg = role_models.get(role.value)
+        if role_cfg and role_cfg.get("provider"):
+            return role_cfg["provider"]
+
+        # 2. Tier-based fallback
+        if role in _PLANNING_ROLES:
+            for model_cfg in self._planning_models:
+                provider = model_cfg.get("provider", "")
+                if provider:
+                    return provider
+            default = self._config.get("governance", {}).get("default_planning_model", {})
+            return default.get("provider", "")
+
+        elif role in _EXECUTION_ROLES:
+            for model_cfg in self._execution_models:
+                provider = model_cfg.get("provider", "")
+                if provider:
+                    return provider
+            default = self._config.get("governance", {}).get("default_execution_model", {})
+            return default.get("provider", "")
+
+        return ""
+
     def _get_agent_kwargs(self, role: AgentRole, parent_agent=None) -> dict:
-        """Get extra kwargs for AIAgent constructor (base_url, api_key for proxy)."""
+        """Get extra kwargs for AIAgent constructor (provider, base_url, api_key)."""
         kwargs = {}
 
-        # Cursor proxy for planning roles
+        # Cursor proxy for 中书省 (highest priority)
         if role in _PLANNING_ROLES and self._cursor_proxy_config:
             if role == AgentRole.ZHONGSHU:
                 kwargs["base_url"] = self._cursor_proxy_config.get("base_url", "")
                 kwargs["api_key"] = self._cursor_proxy_config.get("api_key", "")
+                return kwargs
+
+        # Pass provider so AIAgent resolves correct base_url/api_key
+        provider = self._get_provider_for_role(role)
+        if provider:
+            kwargs["provider"] = provider
 
         return kwargs
 
