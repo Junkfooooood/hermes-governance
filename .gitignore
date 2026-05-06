@@ -22,6 +22,9 @@ gateway_state.json
 channel_directory.json
 context_length_cache.yaml
 
+# Governance runtime state (ephemeral, regenerated per session)
+governance/state/
+
 # Session & runtime data
 sessions/
 logs/

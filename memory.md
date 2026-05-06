@@ -2,10 +2,10 @@
 
 ## Core layer
 - `SOUL.md` — core identity, principles, and routing rules
-- `memory.md` — compact pointer map
+- `memory.md` — compact pointer map (this file)
+- `memory/core/` — stable anchors (user preferences, investment principles, life principles)
 - `memory/memory-governance-spec.md` — governance specification
 - `memory/harness.md` — enforcement and operational harness
-- `memory/core/` — stable anchors only
 
 ## Memory lifecycle layers
 - `memory/working/` — ephemeral task state
@@ -14,22 +14,17 @@
 - `memory/archive/` — expired, deprecated, or superseded memory
 
 ## Retrieval layers
-- `fact_store/` — keyword/tag friendly facts
 - `skills/` — reusable procedures and playbooks
-- `byterover/` — semantic index, timeline index, and events
-- `neo4j/` — relationships, causality, and time-ordered facts
-- `qdrant` — vector recall service
+- `plugins/governance/` — governance chain and structured memory (Boulder State, Decision Log, Notepad Wisdom)
 
 ## Governance layers
 - `harness/` — universal agent rules, roles, and collaboration protocols
-- `ams-api` — memory governance and orchestration
-- `mem0` — extraction, normalization, and write orchestration
+- `plugins/governance/` — 三省六部 governance chain implementation
 
 ## Retrieval order
 1. Core pointers
-2. Keyword/tag facts and skills
-3. Semantic recall
-4. Graph / timeline recall
+2. Skills and procedures
+3. Governance structured memory
 
 ## Operating rule
 - Keep this file short.
